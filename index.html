@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>더몬스터학원 — 블로그 → 웹툰 변환기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Jua&family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Noto Sans KR',sans-serif;background:#F5F0FF;color:#1E0A3C;min-height:100vh;word-break:keep-all;overflow-wrap:break-word;}
+:root{--slide-duration:2.5s;}
+
+.hdr{background:linear-gradient(135deg,#1E0A3C,#3A1078);color:#fff;padding:16px 20px;display:flex;align-items:center;gap:12px;border-bottom:4px solid #FFE135;}
+.hdr-logo{font-family:Jua,sans-serif;font-size:22px;}.hdr-logo span{color:#FFE135;}
+.hdr-sep{width:1px;height:18px;background:rgba(255,255,255,0.2);}
+.hdr-sub{font-size:12px;color:rgba(255,255,255,0.5);}
+.hdr-chars{margin-left:auto;font-size:20px;letter-spacing:2px;}
+
+.layout{display:flex;min-height:calc(100vh - 60px);}
+.panel-l{width:420px;flex-shrink:0;border-right:2px solid #E0D4FF;background:#FFFBF5;display:flex;flex-direction:column;}
+.panel-r{flex:1;background:#F5F0FF;overflow-y:auto;}
+@media(max-width:768px){.layout{flex-direction:column;}.panel-l{width:100%;border-right:none;border-bottom:2px solid #E0D4FF;}}
+
+.inp-hd{padding:16px 20px;border-bottom:1px solid #E8DEFF;}
+.inp-hd h2{font-family:Jua,sans-serif;font-size:16px;color:#3A1078;margin-bottom:2px;}
+.inp-hd p{font-size:11px;color:#8B7AAF;}
+.inp-bd{padding:14px 20px;flex:1;display:flex;flex-direction:column;gap:12px;}
+.inp-bd textarea{flex:1;min-height:200px;resize:vertical;font-size:13px;line-height:1.7;padding:14px;border:2px solid #D8CCFF;border-radius:12px;background:#fff;color:#1E0A3C;}
+.inp-bd textarea:focus{outline:none;border-color:#7B2FF2;}
+.inp-bd textarea::placeholder{color:#B8A8D8;}
+.api-row input{width:100%;padding:9px 12px;border:2px solid #E8DEFF;border-radius:8px;font-size:11px;background:#FDFBFF;}
+.api-row input:focus{outline:none;border-color:#7B2FF2;}
+.api-info{font-size:10px;color:#8B7AAF;margin-top:-4px;}
+
+.btn-main{padding:14px;font-size:14px;font-family:Jua,sans-serif;border:2.5px solid #1E0A3C;border-radius:12px;cursor:pointer;background:linear-gradient(135deg,#7B2FF2,#9B59FF);color:#fff;box-shadow:3px 3px 0 #1E0A3C;transition:all 0.15s;}
+.btn-main:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 #1E0A3C;}
+.btn-main:active{transform:translate(1px,1px);box-shadow:2px 2px 0 #1E0A3C;}
+.btn-main:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+.btn-demo{padding:10px;font-size:12px;font-family:Jua,sans-serif;border:2px solid #00D68F;border-radius:10px;cursor:pointer;background:#E6FFF5;color:#00896A;margin-top:-4px;}
+.btn-demo:hover{background:#00D68F;color:#fff;}
+.prog{height:4px;background:#E8DEFF;border-radius:3px;overflow:hidden;}.prog-fill{height:100%;width:0;background:linear-gradient(90deg,#7B2FF2,#00D68F,#FF6B35);transition:width 0.5s;border-radius:3px;}
+.status{font-size:11px;color:#8B7AAF;margin-top:2px;min-height:18px;font-weight:500;transition:color .3s;}
+
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#8B7AAF;text-align:center;padding:40px;}
+.empty .chars{font-size:52px;margin-bottom:14px;letter-spacing:4px;}
+.empty h3{font-family:Jua,sans-serif;font-size:16px;color:#3A1078;margin-bottom:4px;}
+.empty p{font-size:12px;line-height:1.5;}
+
+.tabs{display:flex;gap:2px;padding:10px 14px;background:linear-gradient(135deg,#1E0A3C,#3A1078);border-bottom:3px solid #FFE135;}
+.tab{padding:8px 16px;font-size:12px;font-weight:700;border:none;border-radius:8px 8px 0 0;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);cursor:pointer;transition:all 0.2s;}
+.tab.on{background:#F5F0FF;color:#3A1078;}
+.tab:hover:not(.on){background:rgba(255,255,255,0.15);color:#fff;}
+.view{display:none;padding:20px;}.view.on{display:block;}
+
+.dlbar{display:none;padding:10px 14px;background:#FFFBF5;border-bottom:1.5px solid #E8DEFF;align-items:center;gap:6px;flex-wrap:wrap;}
+.dlbar.show{display:flex;}
+.dlbar span{font-size:11px;font-weight:700;color:#3A1078;}
+.dl{padding:6px 12px;border-radius:6px;border:1.5px solid #D8CCFF;background:#fff;font-size:11px;font-weight:700;cursor:pointer;color:#3A1078;transition:all 0.15s;}
+.dl:hover{border-color:#7B2FF2;background:#F0E6FF;}
+.dl.pr{background:linear-gradient(135deg,#7B2FF2,#9B59FF);color:#fff;border-color:#1E0A3C;}
+.dl:disabled{opacity:0.4;cursor:not-allowed;}
+.dlinfo{font-size:10px;color:#8B7AAF;margin-left:auto;}
+
+/* WEBTOON */
+.wt{background:#FFFBF5;border:2.5px solid #1E0A3C;border-radius:16px;margin-bottom:12px;overflow:hidden;}
+.wt.anim{opacity:0;transform:translateY(16px);animation:up .4s ease forwards;}
+@keyframes up{to{opacity:1;transform:none;}}
+.wt-dlg{display:flex;gap:10px;align-items:flex-start;padding:14px;}
+.wt-dlg.flip{flex-direction:row-reverse;}
+.wt-av{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;border:2.5px solid #1E0A3C;}
+.wt-bbl{flex:1;border-radius:14px;padding:12px 14px;font-size:13px;line-height:1.7;}
+.wt-bbl .who{display:block;font-size:10px;font-weight:700;margin-bottom:2px;}
+.wt-bbl b{color:#1E0A3C;font-weight:700;background:#FFE135;padding:1px 4px;border-radius:3px;}
+
+/* CARD */
+.cn-wrap{max-width:380px;margin:0 auto;aspect-ratio:1/1.2;position:relative;overflow:hidden;}
+.cn-s{display:none;min-height:460px;flex-direction:column;}.cn-s.on{display:flex;}
+.cn-nav{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px;}
+.cn-btn{width:34px;height:34px;border:2px solid #1E0A3C;border-radius:50%;background:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1E0A3C;transition:all 0.15s;}
+.cn-btn:hover{background:#7B2FF2;color:#fff;}
+.cn-dots{display:flex;gap:4px;}
+
+/* SHORTS */
+.sh-phone{width:270px;height:480px;margin:0 auto;border:3px solid #1E0A3C;border-radius:28px;overflow:hidden;position:relative;background:linear-gradient(135deg,#1E0A3C,#3A1078);box-shadow:6px 6px 0 rgba(30,10,60,0.25);}
+.sh-notch{position:absolute;top:6px;left:50%;transform:translateX(-50%);width:70px;height:16px;background:#000;border-radius:0 0 10px 10px;z-index:10;}
+.sh-prog{position:absolute;top:26px;left:8px;right:8px;z-index:10;display:flex;gap:2px;}
+.sp{flex:1;height:2.5px;background:rgba(255,255,255,0.2);border-radius:2px;overflow:hidden;}
+.sp .f{width:0;height:100%;background:#FFE135;border-radius:2px;}
+.sp.done .f{width:100%;}.sp.act .f{width:100%;animation:spf var(--slide-duration) linear forwards;}
+@keyframes spf{from{width:0}to{width:100%}}
+.sh-scr{width:100%;height:100%;position:relative;overflow:hidden;}
+.ss{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;padding:44px 16px 24px;text-align:center;opacity:0;transform:scale(0.96);transition:all 0.35s;}
+.ss.on{display:flex;opacity:1;transform:none;}
+.ss.out{display:flex;opacity:0;transform:translateY(-50px) scale(0.96);}
+
+.sh-ctrl{display:flex;align-items:center;gap:6px;justify-content:center;margin-top:12px;}
+.sh-btn{padding:8px 14px;border-radius:8px;border:2px solid #1E0A3C;font-size:12px;font-weight:700;cursor:pointer;background:#fff;color:#1E0A3C;}
+.sh-btn.pr{background:linear-gradient(135deg,#7B2FF2,#9B59FF);color:#fff;}
+.sh-spd{display:flex;align-items:center;gap:3px;font-size:11px;color:#8B7AAF;margin-left:6px;}
+.sh-spd select{padding:3px 6px;border-radius:5px;border:1px solid #D8CCFF;font-size:11px;}
+.sh-tip{text-align:center;margin-top:12px;font-size:11px;color:#8B7AAF;line-height:1.4;background:rgba(123,47,242,0.05);border:1px solid rgba(123,47,242,0.12);border-radius:10px;padding:10px;max-width:380px;margin-left:auto;margin-right:auto;}
+
+.modal{display:none;position:fixed;inset:0;background:rgba(30,10,60,0.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column;padding:16px;}
+.modal.show{display:flex;}
+.modal img{max-width:90%;max-height:70vh;border-radius:10px;}
+.modal-info{margin-top:10px;color:#D8CCFF;font-size:12px;text-align:center;line-height:1.5;}
+.modal-x{position:absolute;top:16px;right:20px;width:36px;height:36px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.1);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-logo"><span>더</span>몬스터<span>학원</span></div>
+  <div class="hdr-sep"></div>
+  <div class="hdr-sub">수학 콘텐츠 → 웹툰 변환</div>
+  <div class="hdr-chars">🦊🐧🐣</div>
+</div>
+
+<div class="layout">
+<div class="panel-l">
+  <div class="inp-hd"><h2>📐 블로그 글 입력</h2><p>수학 콘텐츠를 붙여넣으면 귀여운 친구들이 웹툰으로 바꿔줘요</p></div>
+  <div class="inp-bd">
+    <textarea id="blogInput" placeholder="수학 학습 콘텐츠를 여기에 붙여넣으세요..."></textarea>
+    <div class="api-row"><input type="password" id="apiKey" placeholder="API Key (이 채팅 안에서는 비워둬도 됩니다)"></div>
+    <div class="api-info">💡 이 채팅 안에서는 API Key 없이 바로 변환 가능해요!</div>
+    <button class="btn-main" id="genBtn" onclick="convert()">🧮 웹툰으로 변환하기</button>
+    <button class="btn-demo" onclick="loadDemo()">👀 데모 보기 (API 없이)</button>
+    <div class="prog"><div class="prog-fill" id="pf"></div></div>
+    <div class="status" id="st"></div>
+  </div>
+</div>
+<div class="panel-r">
+  <div class="empty" id="empty">
+    <div class="chars">🦊🐧🐣</div>
+    <h3>변환 결과가 여기에 나와요</h3>
+    <p>"웹툰으로 변환하기" 또는 "데모 보기"를 눌러주세요</p>
+  </div>
+  <div id="out" style="display:none">
+    <div class="tabs">
+      <button class="tab on" onclick="showTab(0)">📖 웹툰</button>
+      <button class="tab" onclick="showTab(1)">📱 카드뉴스</button>
+      <button class="tab" onclick="showTab(2)">🎬 숏츠</button>
+    </div>
+    <div class="dlbar" id="dlbar">
+      <span>저장</span>
+      <button class="dl pr" id="dlMain" onclick="dlCurrent()">📥 이미지</button>
+      <button class="dl" id="dlAll" onclick="dlAllCards()">📦 카드 전체</button>
+      <button class="dl" id="dlEach" onclick="dlEachCard()" style="display:none">🗂️ 낱장</button>
+      <button class="dl" id="dlVid" onclick="dlVideo()" style="display:none">🎬 영상(보통)</button>
+      <button class="dl pr" id="dlPng" onclick="dlPngFrames()" style="display:none">🖼️ 타이핑PNG(ZIP)</button>
+      <span class="dlinfo" id="dlinfo"></span>
+    </div>
+    <div class="view on" id="v0"><div id="wtArea" style="max-width:400px;margin:0 auto;"></div></div>
+    <div class="view" id="v1"><div id="cnArea" style="max-width:400px;margin:0 auto;"></div></div>
+    <div class="view" id="v2"><div id="shArea" style="max-width:400px;margin:0 auto;"></div></div>
+  </div>
+</div>
+</div>
+
+<div class="modal" id="modal" onclick="if(event.target===this)closeM()">
+  <button class="modal-x" onclick="closeM()">✕</button>
+  <img id="mImg" src="">
+  <div class="modal-info" id="mInfo">💡 우클릭 → 저장</div>
+</div>
+
+<script>
+// 토스트 메시지 (alert 대신 사용)
+function toast(msg,type){
+  const old=document.getElementById('toast-msg');if(old)old.remove();
+  const d=document.createElement('div');d.id='toast-msg';
+  const bg=type==='error'?'#FF4757':type==='success'?'#00D68F':'#7B2FF2';
+  d.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;background:'+bg+';color:white;padding:14px 24px;font-size:14px;font-weight:700;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);text-align:center;max-width:90%;animation:toastIn .3s ease;font-family:Noto Sans KR,sans-serif;';
+  d.textContent=msg;document.body.appendChild(d);
+  setTimeout(()=>{d.style.opacity='0';d.style.transition='opacity .3s';setTimeout(()=>d.remove(),300);},3500);
+}
+window.onerror=function(msg){toast('❌ 에러: '+msg,'error');};
+window.addEventListener('unhandledrejection',function(e){toast('❌ 에러: '+(e.reason?.message||e.reason),'error');});
+
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+
+// =============================
+// 🦊🐧🐣 CHARACTER SYSTEM
+// =============================
+const C={
+  purple:{emoji:'🦊',name:'수리',color:'#7B2FF2',light:'#F0E6FF',border:'#7B2FF2',desc:'영리한 여우 선생님'},
+  ghost:{emoji:'🐧',name:'꾸미',color:'#00896A',light:'#E6FFF5',border:'#00D68F',desc:'호기심 많은 펭귄'},
+  oni:{emoji:'🐣',name:'다온',color:'#E85D2C',light:'#FFF0E8',border:'#FF6B35',desc:'활발한 병아리'}
+};
+
+function avatar(who,sz){const c=C[who]||C.purple;return `<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${c.light};border:2.5px solid ${c.border};display:flex;align-items:center;justify-content:center;font-size:${Math.round(sz*0.55)}px;flex-shrink:0">${c.emoji}</div>`;}
+
+// Modal
+function showM(src){$('#mImg').style.display='';$('#mImg').src=src;$('#modal').classList.add('show');}
+function closeM(){$('#modal').classList.remove('show');$('#mImg').src='';$('#mImg').style.display='';const v=document.getElementById('mVid');if(v){v.pause();v.remove();}const d=document.getElementById('mDl');if(d)d.remove();}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeM();});
+
+// Tabs
+function showTab(i){
+  $$('.tab').forEach((t,j)=>t.classList.toggle('on',j===i));
+  $$('.view').forEach((v,j)=>v.classList.toggle('on',j===i));
+  const m=$('#dlMain'),a=$('#dlAll'),e=$('#dlEach'),v=$('#dlVid'),p=$('#dlPng');
+  if(i===0){m.textContent='📥 웹툰 이미지';a.style.display='';e.style.display='none';v.style.display='none';p.style.display='none';}
+  else if(i===1){m.textContent='📥 현재 슬라이드';a.style.display='';e.style.display='';v.style.display='none';p.style.display='none';}
+  else{m.textContent='📥 현재 화면';a.style.display='none';e.style.display='none';v.style.display='';p.style.display='';}
+  $('#dlinfo').textContent='';if(i!==2&&window._st)stopSh();
+}
+
+// ===== CAPTURE =====
+async function cap(el,bg){
+  const all=el.querySelectorAll('*'),sv=[];sv.push({e:el,s:el.getAttribute('style')||''});
+  el.style.animation='none';el.style.transition='none';el.style.opacity='1';el.style.transform='none';
+  all.forEach(e=>{sv.push({e,s:e.getAttribute('style')||''});e.style.setProperty('animation','none','important');e.style.setProperty('transition','none','important');e.style.setProperty('opacity','1','important');});
+  el.offsetHeight;await new Promise(r=>setTimeout(r,200));
+  let c;try{c=await html2canvas(el,{backgroundColor:bg||'#F5F0FF',scale:5,useCORS:true,logging:false,allowTaint:true,foreignObjectRendering:false,width:el.scrollWidth,height:el.scrollHeight});}
+  catch(e){c=await html2canvas(el,{backgroundColor:bg||'#F5F0FF',scale:3,logging:false});}
+  sv.forEach(s=>{if(s.s)s.e.setAttribute('style',s.s);else s.e.removeAttribute('style');});el.offsetHeight;return c;
+}
+
+// ===== DOWNLOADS =====
+async function dlCurrent(){
+  const btn=$('#dlMain');btn.disabled=true;const ot=btn.textContent;btn.textContent='⏳...';
+  try{const i=$$('.tab').findIndex(t=>t.classList.contains('on'));
+    let el,bg;if(i===0){el=$('#wtArea');bg='#F5F0FF';}else if(i===1){el=$('.cn-wrap');bg='#FFFBF5';}else{el=$('.sh-phone');bg='#1E0A3C';}
+    if(!el){btn.disabled=false;btn.textContent=ot;return;}
+    const c=await cap(el,bg),d=c.toDataURL('image/png',1.0);showM(d);
+    try{const l=document.createElement('a');l.download=`더몬스터_${['웹툰','카드','숏츠'][i]}.png`;l.href=d;document.body.appendChild(l);l.click();document.body.removeChild(l);}catch(e){}
+    $('#dlinfo').textContent=`✅ ${c.width}×${c.height}px`;
+  }catch(e){$('#dlinfo').textContent='❌ 실패';}btn.disabled=false;btn.textContent=ot;
+}
+async function dlAllCards(){
+  const btn=$('#dlAll');btn.disabled=true;btn.textContent='⏳...';
+  try{const a=$$('.cn-s'),cs=[],w=$('.cn-wrap');for(let i=0;i<a.length;i++){a.forEach((s,j)=>s.classList.toggle('on',j===i));$$('.cn-dot').forEach((d,j)=>d.classList.toggle('on',j===i));await new Promise(r=>setTimeout(r,300));cs.push(await cap(w,'#FFFBF5'));}cnGo(0);
+    const sW=cs[0].width,sH=cs[0].height,co=document.createElement('canvas');co.width=sW;co.height=sH*cs.length;const x=co.getContext('2d');cs.forEach((c,i)=>x.drawImage(c,0,sH*i));
+    const d=co.toDataURL('image/png',1.0);showM(d);try{const l=document.createElement('a');l.download='더몬스터_카드전체.png';l.href=d;document.body.appendChild(l);l.click();document.body.removeChild(l);}catch(e){}
+  }catch(e){$('#dlinfo').textContent='❌';}btn.disabled=false;btn.textContent='📦 카드 전체';
+}
+async function dlEachCard(){
+  const btn=$('#dlEach');btn.disabled=true;btn.textContent='⏳...';
+  try{const a=$$('.cn-s'),n=a.length,w=$('.cn-wrap');for(let i=0;i<n;i++){a.forEach((s,j)=>s.classList.toggle('on',j===i));$$('.cn-dot').forEach((d,j)=>d.classList.toggle('on',j===i));await new Promise(r=>setTimeout(r,300));
+    const c=await cap(w,'#FFFBF5'),d=c.toDataURL('image/png',1.0);try{const l=document.createElement('a');l.download=`더몬스터_카드_${i+1}.png`;l.href=d;document.body.appendChild(l);l.click();document.body.removeChild(l);}catch(e){}$('#dlinfo').textContent=`${i+1}/${n}`;await new Promise(r=>setTimeout(r,200));}
+    cnGo(0);$('#dlinfo').textContent=`✅ ${n}장 완료`;
+  }catch(e){$('#dlinfo').textContent='❌';}btn.disabled=false;btn.textContent='🗂️ 낱장';
+}
+
+// ===== HD SLIDES: Canvas 2D 2K (1440x2560) =====
+function makeSlides(data){
+  const W=1080,H=1920,Q=4/3,RW=1440,RH=2560,slides=[];
+  function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();}
+  function gbg(c,a,b){const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,a);g.addColorStop(1,b);c.fillStyle=g;c.fillRect(0,0,W,H);}
+  function stripe(c){['#7B2FF2','#00D68F','#FF6B35'].forEach((cl,i)=>{c.fillStyle=cl;c.fillRect(W/3*i,H-14,W/3,14);});}
+  function emo(c,e,x,y,sz,bgc,bdc){
+    c.fillStyle=bgc;c.strokeStyle=bdc;c.lineWidth=6;
+    c.beginPath();c.arc(x,y,sz/2+28,0,Math.PI*2);c.fill();c.stroke();
+    c.font=sz+'px serif';c.textAlign='center';c.textBaseline='middle';c.fillText(e,x,y+6);
+  }
+  function wrap(c,t,x,y,sz,col,mw,fn){
+    c.fillStyle=col;c.font=sz+'px '+(fn||"'Jua',sans-serif");c.textAlign='center';c.textBaseline='middle';
+    const cl=t.replace(/<[^>]+>/g,'');const lines=[];let ln='';
+    for(let i=0;i<cl.length;i++){const ch=cl[i],test=ln+ch;
+      if(c.measureText(test).width>mw&&ln){const sp=ln.lastIndexOf(' ');if(sp>ln.length/2){lines.push(ln.substring(0,sp));ln=ln.substring(sp+1)+ch;}else{lines.push(ln);ln=ch;}}else ln=test;}
+    if(ln)lines.push(ln);
+    const lh=sz*1.65,sy=y-((lines.length-1)*lh)/2;
+    lines.forEach((l,i)=>c.fillText(l,x,sy+i*lh,mw));return{lines,lh,sy};
+  }
+  const CI={purple:{emoji:'🦊',name:'수리',color:'#7B2FF2',bg:'#F0E6FF'},ghost:{emoji:'🐧',name:'꾸미',color:'#00D68F',bg:'#E6FFF5'},oni:{emoji:'🐣',name:'다온',color:'#FF6B35',bg:'#FFF0E8'}};
+
+  // COVER
+  {const c=document.createElement('canvas');c.width=RW;c.height=RH;const x=c.getContext('2d');x.scale(Q,Q);
+    gbg(x,'#3A1078','#1E0A3C');
+    emo(x,'🦊',W/2,380,240,'#F0E6FF','#7B2FF2');
+    x.fillStyle='#7B2FF2';rr(x,W/2-190,620,380,76,38);x.fill();
+    x.fillStyle='#fff';x.font="42px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText('더몬스터학원',W/2,658);
+    wrap(x,data.title,W/2,880,84,'#FFE135',W-120);
+    wrap(x,data.subtitle,W/2,1140,44,'rgba(255,255,255,0.55)',W-120,"'Gaegu',cursive");
+    stripe(x);slides.push(c);}
+
+  // PANELS
+  for(const p of data.panels){
+    const c=document.createElement('canvas');c.width=RW;c.height=RH;const x=c.getContext('2d');x.scale(Q,Q);
+    gbg(x,'#2A0E5A','#1E0A3C');
+    if(p.type==='dialog'){
+      const ci=CI[p.character]||CI.purple;
+      emo(x,ci.emoji,W/2,300,220,ci.bg,ci.color);
+      x.fillStyle=ci.color;x.font="52px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText(ci.name,W/2,520);
+      wrap(x,p.text,W/2,860,56,'#ffffff',W-120,"'Noto Sans KR',sans-serif");
+      const bm=[...p.text.matchAll(/<b>(.*?)<\/b>/g)];
+      if(bm.length){
+        const kw=bm.map(m=>m[1]).join(' · ');
+        x.fillStyle='rgba(255,225,53,0.15)';rr(x,60,1340,W-120,90,44);x.fill();
+        x.fillStyle='#FFE135';x.font="bold 48px 'Noto Sans KR',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText('✦ '+kw+' ✦',W/2,1385,W-160);
+      }
+    }else if(p.type==='info'){
+      x.fillStyle='#FFE135';rr(x,W/2-280,180,560,86,16);x.fill();
+      x.fillStyle='#1E0A3C';x.font="bold 46px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText('📊 '+p.label,W/2,223);
+      p.items.forEach((item,j)=>{
+        const iy=360+j*200;
+        x.fillStyle='rgba(255,255,255,0.07)';rr(x,50,iy,W-100,160,20);x.fill();
+        x.strokeStyle='rgba(255,255,255,0.1)';x.lineWidth=2;rr(x,50,iy,W-100,160,20);x.stroke();
+        x.fillStyle='#7B2FF2';rr(x,80,iy+40,70,70,16);x.fill();
+        x.fillStyle='#FFE135';x.font="bold 38px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText(j+1,115,iy+75);
+        x.fillStyle='#fff';x.font="42px 'Noto Sans KR',sans-serif";x.textAlign='left';x.textBaseline='middle';x.fillText(item.replace(/<[^>]+>/g,''),174,iy+75,W-260);
+      });
+    }else if(p.type==='compare'){
+      x.fillStyle='#FFE135';x.font="bold 52px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText('⚖️ 비교 분석',W/2,200);
+      const cw=W/2-60;
+      x.fillStyle='rgba(123,47,242,0.15)';rr(x,30,300,cw,640,24);x.fill();x.strokeStyle='#7B2FF2';x.lineWidth=4;rr(x,30,300,cw,640,24);x.stroke();
+      x.fillStyle='#fff';x.font="bold 46px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText(p.left.title,30+cw/2,380);
+      wrap(x,p.left.points,30+cw/2,600,36,'rgba(255,255,255,0.85)',cw-50,"'Noto Sans KR',sans-serif");
+      x.fillStyle='rgba(255,107,53,0.15)';rr(x,W/2+30,300,cw,640,24);x.fill();x.strokeStyle='#FF6B35';x.lineWidth=4;rr(x,W/2+30,300,cw,640,24);x.stroke();
+      x.fillStyle='#fff';x.font="bold 46px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText(p.right.title,W/2+30+cw/2,380);
+      wrap(x,p.right.points,W/2+30+cw/2,600,36,'rgba(255,255,255,0.85)',cw-50,"'Noto Sans KR',sans-serif");
+    }
+    slides.push(c);
+  }
+
+  // END
+  {const c=document.createElement('canvas');c.width=RW;c.height=RH;const x=c.getContext('2d');x.scale(Q,Q);
+    gbg(x,'#3A1078','#1E0A3C');
+    emo(x,'🦊',W/2-240,380,170,'#F0E6FF','#7B2FF2');
+    emo(x,'🐧',W/2,350,170,'#E6FFF5','#00D68F');
+    emo(x,'🐣',W/2+240,380,170,'#FFF0E8','#FF6B35');
+    x.fillStyle='#fff';x.font="68px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';
+    x.fillText('수리·꾸미·다온과 함께',W/2,660);x.fillText('수학이 즐거워져요!',W/2,750);
+    x.fillStyle='rgba(255,255,255,0.5)';x.font="36px 'Noto Sans KR',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText('더몬스터학원 · 매주 새 콘텐츠',W/2,860);
+    if(data.tip){
+      x.fillStyle='rgba(123,47,242,0.25)';rr(x,70,940,W-140,240,24);x.fill();
+      x.fillStyle='#FFE135';x.font="bold 36px 'Jua',sans-serif";x.textAlign='left';x.textBaseline='top';x.fillText('수리 TIP ✦',110,970);
+      wrap(x,data.tip,W/2,1090,34,'rgba(255,255,255,0.85)',W-220,"'Noto Sans KR',sans-serif");
+    }
+    stripe(x);slides.push(c);}
+  return slides;
+}
+
+// PNG TYPING FRAMES → ZIP
+async function dlPngFrames(){
+  const btn=$('#dlPng');btn.disabled=true;btn.textContent='⏳ 생성 중...';
+  try{
+    if(!window._data)throw new Error('데이터 없음. 먼저 데모 보기를 눌러주세요.');
+    const data=window._data, W=1080, H=1920, Q=4/3, RW=1440, RH=2560;
+    const allPngs=[];
+
+    function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();}
+    function gbg(c,a,b){const g=c.createLinearGradient(0,0,0,H);g.addColorStop(0,a);g.addColorStop(1,b);c.fillStyle=g;c.fillRect(0,0,W,H);}
+    function stripe(c){['#7B2FF2','#00D68F','#FF6B35'].forEach((cl,i)=>{c.fillStyle=cl;c.fillRect(W/3*i,H-14,W/3,14);});}
+    function emo(c,e,x,y,sz,bgc,bdc){c.fillStyle=bgc;c.strokeStyle=bdc;c.lineWidth=6;c.beginPath();c.arc(x,y,sz/2+28,0,Math.PI*2);c.fill();c.stroke();c.font=sz+'px serif';c.textAlign='center';c.textBaseline='middle';c.fillText(e,x,y+6);}
+    function wt(ctx,text,mw,sz,fn){
+      ctx.font=sz+'px '+(fn||"'Jua',sans-serif");
+      const cl=(text||'').replace(/<[^>]+>/g,'');const lines=[];let ln='';
+      for(let i=0;i<cl.length;i++){const ch=cl[i],t=ln+ch;
+        if(ctx.measureText(t).width>mw&&ln){const sp=ln.lastIndexOf(' ');if(sp>ln.length/2){lines.push(ln.substring(0,sp));ln=ln.substring(sp+1)+ch;}else{lines.push(ln);ln=ch;}}else ln=t;}
+      if(ln)lines.push(ln);return lines;}
+    function dw(ctx,lines,x,y,sz,col,mw,fn){
+      ctx.fillStyle=col;ctx.font=sz+'px '+(fn||"'Noto Sans KR',sans-serif");ctx.textAlign='center';ctx.textBaseline='middle';
+      if(!lines.length)return;
+      const lh=sz*1.65,sy=y-((lines.length-1)*lh)/2;
+      lines.forEach((l,i)=>ctx.fillText(l,x,sy+i*lh,mw));}
+    const CI={purple:{emoji:'🦊',name:'수리',color:'#7B2FF2',bg:'#F0E6FF'},ghost:{emoji:'🐧',name:'꾸미',color:'#00D68F',bg:'#E6FFF5'},oni:{emoji:'🐣',name:'다온',color:'#FF6B35',bg:'#FFF0E8'}};
+
+    const cv=document.createElement('canvas');cv.width=RW;cv.height=RH;
+    cv.getContext('2d').scale(Q,Q);
+    const baseCV=document.createElement('canvas');baseCV.width=RW;baseCV.height=RH;
+    baseCV.getContext('2d').scale(Q,Q);
+
+    function save(label){
+      allPngs.push({name:String(allPngs.length+1).padStart(3,'0')+'_'+label+'.png', data:cv.toDataURL('image/png')});
+    }
+
+    // COVER
+    {const x=cv.getContext('2d');
+      gbg(x,'#3A1078','#1E0A3C');
+      emo(x,'🦊',W/2,380,240,'#F0E6FF','#7B2FF2');
+      x.fillStyle='#7B2FF2';rr(x,W/2-190,620,380,76,38);x.fill();
+      x.fillStyle='#fff';x.font="42px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText('더몬스터학원',W/2,658);
+      const tl=wt(x,data.title,W-120,84,"'Jua',sans-serif");
+      dw(x,tl,W/2,880,84,'#FFE135',W-120,"'Jua',sans-serif");
+      const sl=wt(x,data.subtitle,W-120,44,"'Gaegu',cursive");
+      dw(x,sl,W/2,1140,44,'rgba(255,255,255,0.55)',W-120,"'Gaegu',cursive");
+      stripe(x);save('cover');
+      $('#dlinfo').textContent='🖼️ 커버 완료';}
+
+    // PANELS
+    for(let pi=0;pi<data.panels.length;pi++){
+      const p=data.panels[pi];
+      $('#dlinfo').textContent='🖼️ 패널 '+(pi+1)+'/'+data.panels.length;
+      await new Promise(r=>setTimeout(r,10));
+
+      if(p.type==='dialog'){
+        const ci=CI[p.character]||CI.purple;
+        const clean=(p.text||'').replace(/<[^>]+>/g,'');
+        const bm=[...(p.text||'').matchAll(/<b>(.*?)<\/b>/g)];
+        const kw=bm.length?'✦ '+bm.map(m=>m[1]).join(' · ')+' ✦':'';
+
+        const bx=baseCV.getContext('2d');
+        gbg(bx,'#2A0E5A','#1E0A3C');
+        emo(bx,ci.emoji,W/2,300,220,ci.bg,ci.color);
+        bx.fillStyle=ci.color;bx.font="52px 'Jua',sans-serif";bx.textAlign='center';bx.textBaseline='middle';bx.fillText(ci.name,W/2,520);
+
+        const fullLines=wt(bx,clean,W-120,56,"'Noto Sans KR',sans-serif");
+        const fullLh=56*1.65;
+        const fullSy=860-((fullLines.length-1)*fullLh)/2;
+
+        const step=4;
+        for(let ch=step;ch<=clean.length;ch+=step){
+          const x=cv.getContext('2d');
+          x.save();x.setTransform(1,0,0,1,0,0);x.drawImage(baseCV,0,0);x.restore();
+          const partial=clean.substring(0,ch);
+          const pLines=wt(x,partial,W-120,56,"'Noto Sans KR',sans-serif");
+          dw(x,pLines,W/2,860,56,'#ffffff',W-120,"'Noto Sans KR',sans-serif");
+          const last=pLines[pLines.length-1]||'';
+          x.font="56px 'Noto Sans KR',sans-serif";
+          const cx2=W/2+x.measureText(last).width/2+6;
+          const cy2=fullSy+(pLines.length-1)*fullLh;
+          x.fillStyle='#FFE135';x.fillRect(cx2,cy2-28,4,56);
+          save(ci.name+'_t');
+        }
+
+        const x=cv.getContext('2d');
+        x.save();x.setTransform(1,0,0,1,0,0);x.drawImage(baseCV,0,0);x.restore();
+        dw(x,fullLines,W/2,860,56,'#ffffff',W-120,"'Noto Sans KR',sans-serif");
+        if(kw){
+          x.fillStyle='rgba(255,225,53,0.15)';rr(x,60,1340,W-120,90,44);x.fill();
+          x.fillStyle='#FFE135';x.font="bold 48px 'Noto Sans KR',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText(kw,W/2,1385,W-160);
+        }
+        save(ci.name+'_done');save(ci.name+'_hold');save(ci.name+'_hold2');
+
+      }else if(p.type==='info'){
+        const x=cv.getContext('2d');
+        gbg(x,'#2A0E5A','#1E0A3C');
+        x.fillStyle='#FFE135';rr(x,W/2-280,180,560,86,16);x.fill();
+        x.fillStyle='#1E0A3C';x.font="bold 46px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText('📊 '+(p.label||''),W/2,223);
+        (p.items||[]).forEach((item,j)=>{
+          const iy=360+j*200;
+          x.fillStyle='rgba(255,255,255,0.07)';rr(x,50,iy,W-100,160,20);x.fill();
+          x.strokeStyle='rgba(255,255,255,0.1)';x.lineWidth=2;rr(x,50,iy,W-100,160,20);x.stroke();
+          x.fillStyle='#7B2FF2';rr(x,80,iy+40,70,70,16);x.fill();
+          x.fillStyle='#FFE135';x.font="bold 38px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText(j+1,115,iy+75);
+          x.fillStyle='#fff';x.font="42px 'Noto Sans KR',sans-serif";x.textAlign='left';x.textBaseline='middle';x.fillText((item||'').replace(/<[^>]+>/g,''),174,iy+75,W-260);
+        });save('info');
+
+      }else if(p.type==='compare'){
+        const x=cv.getContext('2d');
+        gbg(x,'#2A0E5A','#1E0A3C');
+        x.fillStyle='#FFE135';x.font="bold 52px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText('⚖️ 비교 분석',W/2,200);
+        const cw=W/2-60;
+        x.fillStyle='rgba(123,47,242,0.15)';rr(x,30,300,cw,640,24);x.fill();x.strokeStyle='#7B2FF2';x.lineWidth=4;rr(x,30,300,cw,640,24);x.stroke();
+        x.fillStyle='#fff';x.font="bold 46px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText(p.left?.title||'',30+cw/2,380);
+        const lL=wt(x,(p.left?.points||'').replace(/<[^>]+>/g,''),cw-50,36,"'Noto Sans KR',sans-serif");
+        dw(x,lL,30+cw/2,600,36,'rgba(255,255,255,0.85)',cw-50,"'Noto Sans KR',sans-serif");
+        x.fillStyle='rgba(255,107,53,0.15)';rr(x,W/2+30,300,cw,640,24);x.fill();x.strokeStyle='#FF6B35';x.lineWidth=4;rr(x,W/2+30,300,cw,640,24);x.stroke();
+        x.fillStyle='#fff';x.font="bold 46px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';x.fillText(p.right?.title||'',W/2+30+cw/2,380);
+        const rL=wt(x,(p.right?.points||'').replace(/<[^>]+>/g,''),cw-50,36,"'Noto Sans KR',sans-serif");
+        dw(x,rL,W/2+30+cw/2,600,36,'rgba(255,255,255,0.85)',cw-50,"'Noto Sans KR',sans-serif");
+        save('compare');
+      }
+    }
+
+    // END
+    {const x=cv.getContext('2d');
+      gbg(x,'#3A1078','#1E0A3C');
+      emo(x,'🦊',W/2-240,380,170,'#F0E6FF','#7B2FF2');
+      emo(x,'🐧',W/2,350,170,'#E6FFF5','#00D68F');
+      emo(x,'🐣',W/2+240,380,170,'#FFF0E8','#FF6B35');
+      x.fillStyle='#fff';x.font="68px 'Jua',sans-serif";x.textAlign='center';x.textBaseline='middle';
+      x.fillText('수리·꾸미·다온과 함께',W/2,660);
+      x.fillText('수학이 즐거워져요!',W/2,750);
+      x.fillStyle='rgba(255,255,255,0.5)';x.font="36px 'Noto Sans KR',sans-serif";x.textAlign='center';x.textBaseline='middle';
+      x.fillText('더몬스터학원 · 매주 새 콘텐츠',W/2,860);
+      if(data.tip){
+        x.fillStyle='rgba(123,47,242,0.25)';rr(x,70,940,W-140,240,24);x.fill();
+        x.fillStyle='#FFE135';x.font="bold 36px 'Jua',sans-serif";x.textAlign='left';x.textBaseline='top';x.fillText('수리 TIP ✦',110,970);
+        const tipL=wt(x,data.tip,W-220,34,"'Noto Sans KR',sans-serif");
+        dw(x,tipL,W/2,1090,34,'rgba(255,255,255,0.85)',W-220,"'Noto Sans KR',sans-serif");
+      }
+      stripe(x);save('end');}
+
+    // === DOWNLOAD ===
+    const total=allPngs.length;
+    $('#dlinfo').textContent='📦 '+total+'장 저장 준비 중...';
+    
+    let useZip=false;
+    try{if(typeof JSZip!=='undefined'){useZip=true;}}catch(e){}
+
+    if(useZip){
+      const zip=new JSZip();
+      const folder=zip.folder('더몬스터학원_숏츠');
+      for(const p of allPngs){folder.file(p.name,p.data.split(',')[1],{base64:true});}
+      const blob=await zip.generateAsync({type:'blob'},m=>{
+        $('#dlinfo').textContent='📦 압축 '+Math.round(m.percent)+'%';
+      });
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=url;a.download='더몬스터_숏츠_타이핑.zip';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }else{
+      for(let i=0;i<allPngs.length;i++){
+        const a=document.createElement('a');a.href=allPngs[i].data;a.download=allPngs[i].name;
+        document.body.appendChild(a);a.click();document.body.removeChild(a);
+        await new Promise(r=>setTimeout(r,150));
+        if(i%10===0)$('#dlinfo').textContent='📥 '+(i+1)+'/'+total;
+      }
+    }
+
+    showM(allPngs[0]?.data||'');
+    $('#mInfo').innerHTML='✅ <b>'+total+'장</b> 1440×2560 PNG '+(useZip?'ZIP':'개별')+' 저장 완료!<br><br>'+
+      '📱 <b>CapCut 조합법:</b><br>'+
+      '1. '+(useZip?'ZIP 압축 해제 → ':'')+' CapCut → 9:16<br>'+
+      '2. PNG 전체 선택 → 불러오기<br>'+
+      '3. _t 프레임 → 각 <b>0.1초</b> (타이핑)<br>'+
+      '4. _done/_hold → 각 <b>1.5~2초</b><br>'+
+      '5. cover/info/end → 각 <b>2~3초</b><br>'+
+      '6. 내보내기 1440p → 완벽!';
+    $('#modal').classList.add('show');
+    $('#dlinfo').textContent='✅ '+total+'장 완료!';
+  }catch(e){console.error(e);$('#dlinfo').textContent='❌ '+e.message;toast('❌ '+e.message,'error');}
+  btn.disabled=false;btn.textContent='🖼️ 타이핑PNG(ZIP)';
+}
+
+// VIDEO (typing effect)
+async function dlVideo(){
+  const btn=$('#dlVid');btn.disabled=true;btn.textContent='⏳ 녹화...';$('#dlinfo').textContent='🎬 타이핑 영상 생성 중...';
+  try{
+    if(!window._data)throw new Error('데이터 없음');
+    const data=window._data;
+    const W=1080,H=1920,Q=4/3,RW=1440,RH=2560;
+    const CI={purple:{emoji:'🦊',name:'수리',color:'#7B2FF2',bg:'#F0E6FF'},ghost:{emoji:'🐧',name:'꾸미',color:'#00D68F',bg:'#E6FFF5'},oni:{emoji:'🐣',name:'다온',color:'#FF6B35',bg:'#FFF0E8'}};
+    function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();}
+    function wrapLines(ctx,text,maxW,sz,fn){
+      ctx.font=sz+'px '+fn;const cl=text.replace(/<[^>]+>/g,'');
+      const lines=[];let ln='';
+      for(let i=0;i<cl.length;i++){const ch=cl[i],t=ln+ch;
+        if(ctx.measureText(t).width>maxW&&ln){const sp=ln.lastIndexOf(' ');if(sp>ln.length/2){lines.push(ln.substring(0,sp));ln=ln.substring(sp+1)+ch;}else{lines.push(ln);ln=ch;}}else ln=t;}
+      if(ln)lines.push(ln);return lines;
+    }
+
+    const staticSlides=makeSlides(data);
+
+    const slideData=[];
+    let idx=0;
+    slideData.push({type:'static',canvas:staticSlides[idx++]});
+    for(const p of data.panels){
+      if(p.type==='dialog'){
+        const ci=CI[p.character]||CI.purple;
+        const bc=document.createElement('canvas');bc.width=RW;bc.height=RH;const bx=bc.getContext('2d');bx.scale(Q,Q);
+        const g=bx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#2A0E5A');g.addColorStop(1,'#1E0A3C');bx.fillStyle=g;bx.fillRect(0,0,W,H);
+        bx.fillStyle=ci.bg;bx.strokeStyle=ci.color;bx.lineWidth=6;
+        bx.beginPath();bx.arc(W/2,300,138,0,Math.PI*2);bx.fill();bx.stroke();
+        bx.font='220px serif';bx.textAlign='center';bx.textBaseline='middle';bx.fillText(ci.emoji,W/2,306);
+        bx.fillStyle=ci.color;bx.font="52px 'Jua',sans-serif";bx.textAlign='center';bx.textBaseline='middle';bx.fillText(ci.name,W/2,520);
+        const cleanText=p.text.replace(/<[^>]+>/g,'');
+        const bm=[...p.text.matchAll(/<b>(.*?)<\/b>/g)];
+        slideData.push({type:'dialog',canvas:staticSlides[idx],base:bc,text:cleanText,kw:bm.length?bm.map(m=>m[1]).join(' · '):''});
+      }else{
+        slideData.push({type:'static',canvas:staticSlides[idx]});
+      }
+      idx++;
+    }
+    slideData.push({type:'static',canvas:staticSlides[idx]});
+
+    const vc=document.createElement('canvas');vc.width=RW;vc.height=RH;const vx=vc.getContext('2d');
+    const stream=vc.captureStream(60),chunks=[];
+    const rec=(()=>{for(const t of['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp8','video/webm;codecs=vp9','video/webm'])if(MediaRecorder.isTypeSupported(t))return new MediaRecorder(stream,{mimeType:t,videoBitsPerSecond:36000000});return new MediaRecorder(stream);})();
+    const ext=rec.mimeType.includes('mp4')?'mp4':'webm';
+    rec.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
+    const done=new Promise(r=>{rec.onstop=()=>r();});rec.start();
+
+    async function frame(){await new Promise(r=>requestAnimationFrame(r));}
+    async function hold(canvas,ms){const s=performance.now();while(performance.now()-s<ms){vx.setTransform(1,0,0,1,0,0);vx.drawImage(canvas,0,0);await frame();}}
+    async function fade(from,to,ms){
+      const s=performance.now();
+      while(performance.now()-s<ms){
+        const p=(performance.now()-s)/ms;
+        vx.setTransform(1,0,0,1,0,0);
+        vx.globalAlpha=1;vx.drawImage(from,0,0);
+        vx.globalAlpha=p;vx.drawImage(to,0,0);
+        vx.globalAlpha=1;await frame();
+      }
+      vx.setTransform(1,0,0,1,0,0);vx.drawImage(to,0,0);await frame();
+    }
+
+    for(let i=0;i<slideData.length;i++){
+      const s=slideData[i];
+
+      if(s.type==='dialog'){
+        const fullLines=wrapLines(vx,s.text,W-120,56,"'Noto Sans KR',sans-serif");
+        const totalChars=s.text.length;
+        const typeMs=Math.min(3500,totalChars*80);
+
+        const t0=performance.now();
+        while(performance.now()-t0<typeMs){
+          const el=performance.now()-t0;
+          const n=Math.floor(Math.min(el/typeMs,1)*totalChars);
+          const vis=s.text.substring(0,n);
+          const vLines=wrapLines(vx,vis,W-120,56,"'Noto Sans KR',sans-serif");
+          vx.setTransform(1,0,0,1,0,0);vx.drawImage(s.base,0,0);
+          vx.setTransform(Q,0,0,Q,0,0);
+          vx.fillStyle='#fff';vx.font="56px 'Noto Sans KR',sans-serif";vx.textAlign='center';vx.textBaseline='middle';
+          const lh=56*1.65,sy=860-((fullLines.length-1)*lh)/2;
+          vLines.forEach((l,li)=>vx.fillText(l,W/2,sy+li*lh,W-120));
+          if(n<totalChars&&Math.floor(el/350)%2===0){
+            const last=vLines[vLines.length-1]||'';
+            vx.fillStyle='#FFE135';
+            vx.fillRect(W/2+vx.measureText(last).width/2+6,sy+(vLines.length-1)*lh-28,4,56);
+          }
+          await frame();
+        }
+
+        const t1=performance.now();
+        while(performance.now()-t1<2000){
+          vx.setTransform(1,0,0,1,0,0);vx.drawImage(s.base,0,0);
+          vx.setTransform(Q,0,0,Q,0,0);
+          vx.fillStyle='#fff';vx.font="56px 'Noto Sans KR',sans-serif";vx.textAlign='center';vx.textBaseline='middle';
+          const lh=56*1.65,sy=860-((fullLines.length-1)*lh)/2;
+          fullLines.forEach((l,li)=>vx.fillText(l,W/2,sy+li*lh,W-120));
+          if(s.kw){
+            vx.fillStyle='rgba(255,225,53,0.15)';rr(vx,60,1340,W-120,90,44);vx.fill();
+            vx.fillStyle='#FFE135';vx.font="bold 48px 'Noto Sans KR',sans-serif";vx.textAlign='center';vx.textBaseline='middle';
+            vx.fillText('✦ '+s.kw+' ✦',W/2,1385,W-160);
+          }
+          await frame();
+        }
+      }else{
+        await hold(s.canvas, i===0?3500:i===slideData.length-1?4000:4000);
+      }
+
+      if(i<slideData.length-1){
+        const snap=document.createElement('canvas');snap.width=RW;snap.height=RH;snap.getContext('2d').drawImage(vc,0,0);
+        const nextCanvas=slideData[i+1].type==='dialog'?slideData[i+1].base:slideData[i+1].canvas;
+        await fade(snap,nextCanvas,600);
+      }else{
+        const snap=document.createElement('canvas');snap.width=RW;snap.height=RH;snap.getContext('2d').drawImage(vc,0,0);
+        const t=performance.now();
+        while(performance.now()-t<1000){
+          const p=(performance.now()-t)/1000;
+          vx.setTransform(1,0,0,1,0,0);vx.drawImage(snap,0,0);vx.setTransform(Q,0,0,Q,0,0);vx.fillStyle=`rgba(30,10,60,${p})`;vx.fillRect(0,0,W,H);
+          await frame();
+        }
+      }
+      $('#dlinfo').textContent=`🎬 ${i+1}/${slideData.length}`;
+    }
+
+    rec.stop();await done;
+    const blob=new Blob(chunks,{type:rec.mimeType}),url=URL.createObjectURL(blob);
+    $('#mImg').style.display='none';let ev=document.getElementById('mVid');if(ev)ev.remove();
+    const vid=document.createElement('video');vid.id='mVid';vid.src=url;vid.controls=true;vid.autoplay=true;vid.loop=true;vid.style.cssText='max-width:100%;max-height:70vh;border-radius:10px;';
+    $('#mImg').parentNode.insertBefore(vid,$('#mImg'));
+    let ed=document.getElementById('mDl');if(ed)ed.remove();
+    const dl=document.createElement('a');dl.id='mDl';dl.href=url;dl.download='더몬스터_숏츠.'+ext;dl.textContent='📥 다운로드 (.'+ext+')';dl.style.cssText='display:inline-block;margin-top:10px;padding:10px 24px;background:#FFE135;color:#1E0A3C;font-weight:700;border-radius:8px;text-decoration:none;border:2px solid #1E0A3C;';
+    const mi=$('#mInfo');mi.parentNode.insertBefore(dl,mi);$('#modal').classList.add('show');
+    mi.innerHTML=ext==='mp4'?'✅ MP4 HD — 릴스/클립 바로 업로드!':'⚠️ WebM — CloudConvert.com에서 MP4 변환<br><br>💡 <b>최고 화질</b>을 원하면 "🖼️ PNG프레임" 저장 → CapCut에서 조합!';
+    $('#dlinfo').textContent='✅ HD 타이핑 영상 완료!';
+    try{const a=document.createElement('a');a.href=url;a.download='더몬스터_숏츠.'+ext;document.body.appendChild(a);a.click();document.body.removeChild(a);}catch(e){}
+  }catch(e){console.error(e);$('#dlinfo').textContent='❌ '+e.message;}
+  btn.disabled=false;btn.textContent='🎬 영상(보통)';
+}
+
+// =============================
+// 🔧 CONVERT (API 호출)
+// =============================
+async function convert(){
+  const text=$('#blogInput').value.trim();
+  const key=$('#apiKey').value.trim();
+  if(!text){toast('📝 블로그 글을 입력해주세요!','error');$('#st').textContent='⚠️ 텍스트를 입력해주세요';$('#st').style.color='#FF4757';return;}
+
+  const btn=$('#genBtn');btn.disabled=true;btn.textContent='⏳ 변환 중...';
+  $('#pf').style.width='10%';$('#st').textContent='AI에게 웹툰 변환 요청 중...';$('#st').style.color='#8B7AAF';
+
+  const prompt=`수학 블로그 글을 웹툰 대화로 변환. JSON만 출력.
+캐릭터: purple(선생), ghost(질문), oni(감탄)
+panels 5개: dialog 4개 + info 1개. 대화는 짧게(30자 이내). <b>키워드</b> 강조.
+
+형식: {"title":"","subtitle":"","tip":"","panels":[{"type":"dialog","character":"purple","text":""},{"type":"info","label":"","items":["",""]}]}
+
+글:
+${text.substring(0,800)}`;
+
+  try{
+    $('#pf').style.width='30%';
+    const headers={'Content-Type':'application/json'};
+    if(key){
+      headers['x-api-key']=key;
+      headers['anthropic-version']='2023-06-01';
+      headers['anthropic-dangerous-direct-browser-access']='true';
+    }
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:headers,
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})
+    });
+    $('#pf').style.width='60%';$('#st').textContent='응답 분석 중...';
+
+    if(!resp.ok){const err=await resp.json().catch(()=>({}));throw new Error(err.error?.message||'API 호출 실패 ('+resp.status+')');}
+    const data=await resp.json();
+    let raw=data.content[0].text;
+    console.log('AI 원본 응답:', raw);
+    
+    // JSON 추출 + 잘린 JSON 복구 시도
+    let json;
+    try{
+      const m=raw.match(/\{[\s\S]*\}/);
+      json=JSON.parse(m?m[0]:raw);
+    }catch(e){
+      // JSON이 잘렸을 수 있음 - 복구 시도
+      try{
+        let fix=raw;
+        // 마지막 { 이후 } 개수 맞추기
+        const opens=(fix.match(/\{/g)||[]).length;
+        const closes=(fix.match(/\}/g)||[]).length;
+        for(let i=0;i<opens-closes;i++) fix+='}';
+        // 마지막 [ 이후 ] 개수 맞추기
+        const ob=(fix.match(/\[/g)||[]).length;
+        const cb=(fix.match(/\]/g)||[]).length;
+        for(let i=0;i<ob-cb;i++) fix+=']';
+        // 마지막 미완성 문자열 닫기
+        fix=fix.replace(/,\s*[}\]]/, m=>m.slice(1));
+        fix=fix.replace(/,"[^"]*$/, '');
+        fix=fix.replace(/,\s*$/, '');
+        // 다시 괄호 맞추기
+        const o2=(fix.match(/\{/g)||[]).length;
+        const c2=(fix.match(/\}/g)||[]).length;
+        for(let i=0;i<o2-c2;i++) fix+='}';
+        const o3=(fix.match(/\[/g)||[]).length;
+        const c3=(fix.match(/\]/g)||[]).length;
+        for(let i=0;i<o3-c3;i++) fix+=']';
+        const m2=fix.match(/\{[\s\S]*\}/);
+        json=JSON.parse(m2?m2[0]:fix);
+        console.log('잘린 JSON 복구 성공');
+      }catch(e2){
+        throw new Error('JSON 파싱 실패. 글을 좀 더 짧게 입력해보세요.');
+      }
+    }
+
+    // cardSlides가 없으면 panels에서 자동 생성
+    if(!json.cardSlides){
+      const dialogs=json.panels?.filter(p=>p.type==='dialog')||[];
+      json.cardSlides=[
+        {type:'stats',title:'핵심 포인트',items:[
+          {icon:'📊',label:'주제',value:json.title||'수학'},
+          {icon:'💡',label:'핵심',value:json.tip?.substring(0,20)||'개념 이해'},
+          {icon:'📐',label:'패널 수',value:(json.panels?.length||0)+'개'},
+          {icon:'✅',label:'캐릭터',value:'수리·꾸미·다온'}
+        ]},
+        {type:'dialog',title:'친구들의 정리',dialogs:dialogs.slice(0,3).map(d=>({character:d.character,text:d.text?.replace(/<[^>]+>/g,'').substring(0,40)||''}))}
+      ];
+    }
+
+    $('#pf').style.width='90%';$('#st').textContent='웹툰 렌더링 중...';
+    render(json);
+    $('#pf').style.width='100%';$('#st').textContent='✅ 변환 완료!';$('#st').style.color='#00896A';
+    toast('✅ 웹툰 변환 완료!','success');
+  }catch(e){
+    console.error(e);
+    toast('❌ 변환 실패: '+e.message,'error');
+    $('#st').textContent='❌ '+e.message;$('#st').style.color='#FF4757';
+    $('#pf').style.width='0';
+  }
+  btn.disabled=false;btn.textContent='🧮 웹툰으로 변환하기';
+}
+
+// =============================
+// 🎨 RENDER (메인 렌더러)
+// =============================
+function render(data){
+  try{
+  window._data=data;
+  $('#empty').style.display='none';
+  $('#out').style.display='';
+  $('#dlbar').classList.add('show');
+  renderWt(data);
+  renderCn(data);
+  renderSh(data);
+  showTab(0);
+  }catch(e){toast('❌ 렌더링 에러: '+e.message,'error');console.error(e);}
+}
+
+// ===== RENDER WEBTOON =====
+function renderWt(d){
+  let html='';
+  // 커버
+  html+=`<div class="wt anim" style="animation-delay:0s">
+    <div style="padding:20px;text-align:center;background:linear-gradient(135deg,#3A1078,#1E0A3C);color:#fff;position:relative">
+      <div style="font-size:44px;margin-bottom:8px">🦊</div>
+      <div style="display:inline-block;background:#7B2FF2;color:#fff;font-family:Jua,sans-serif;font-size:12px;padding:5px 14px;border-radius:16px;margin-bottom:10px">더몬스터학원</div>
+      <h2 style="font-family:Jua,sans-serif;font-size:20px;line-height:1.4;color:#FFE135;margin:0">${d.title}</h2>
+      <div style="font-family:Gaegu,cursive;color:rgba(255,255,255,0.5);font-size:13px;margin-top:4px">${d.subtitle}</div>
+      <div style="position:absolute;bottom:0;left:0;right:0;height:4px;display:flex"><div style="flex:1;background:#7B2FF2"></div><div style="flex:1;background:#00D68F"></div><div style="flex:1;background:#FF6B35"></div></div>
+    </div>
+  </div>`;
+
+  // 패널들
+  d.panels.forEach((p,i)=>{
+    const delay=(i+1)*0.12;
+    if(p.type==='dialog'){
+      const c=C[p.character]||C.purple;
+      const flip=p.character==='oni'||p.character==='ghost'?' flip':'';
+      html+=`<div class="wt anim" style="animation-delay:${delay}s">
+        <div class="wt-dlg${flip}">
+          ${avatar(p.character,48)}
+          <div class="wt-bbl" style="background:${c.light};border:1.5px solid ${c.border}">
+            <span class="who" style="color:${c.color}">${c.emoji} ${c.name}</span>
+            ${p.text}
+          </div>
+        </div>
+      </div>`;
+    }else if(p.type==='info'){
+      html+=`<div class="wt anim" style="animation-delay:${delay}s">
+        <div style="padding:14px">
+          <div style="text-align:center;font-family:Jua,sans-serif;font-size:15px;color:#3A1078;margin-bottom:10px">📊 ${p.label}</div>
+          ${p.items.map((it,j)=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #E8DEFF">
+            <div style="min-width:28px;height:28px;border-radius:7px;background:#7B2FF2;color:#FFE135;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900">${j+1}</div>
+            <span style="font-size:13px;line-height:1.5">${it}</span>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }else if(p.type==='compare'){
+      html+=`<div class="wt anim" style="animation-delay:${delay}s">
+        <div style="padding:14px">
+          <div style="text-align:center;font-family:Jua,sans-serif;font-size:15px;color:#3A1078;margin-bottom:10px">⚖️ 비교 분석</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="background:#F0E6FF;border:1.5px solid #7B2FF2;border-radius:10px;padding:12px;text-align:center">
+              <div style="font-family:Jua,sans-serif;font-size:14px;margin-bottom:6px;color:#7B2FF2">${p.left.title}</div>
+              <div style="font-size:12px;line-height:1.5;white-space:pre-line">${p.left.points}</div>
+            </div>
+            <div style="background:#FFF0E8;border:1.5px solid #FF6B35;border-radius:10px;padding:12px;text-align:center">
+              <div style="font-family:Jua,sans-serif;font-size:14px;margin-bottom:6px;color:#FF6B35">${p.right.title}</div>
+              <div style="font-size:12px;line-height:1.5;white-space:pre-line">${p.right.points}</div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }
+  });
+
+  // 엔딩
+  html+=`<div class="wt anim" style="animation-delay:${(d.panels.length+1)*0.12}s">
+    <div style="padding:20px;text-align:center;background:linear-gradient(135deg,#1E0A3C,#3A1078);color:#fff;position:relative">
+      <div style="position:absolute;top:0;left:0;right:0;height:4px;display:flex"><div style="flex:1;background:#7B2FF2"></div><div style="flex:1;background:#00D68F"></div><div style="flex:1;background:#FF6B35"></div></div>
+      <div style="font-size:36px;letter-spacing:4px;margin-bottom:10px;margin-top:8px">🦊🐧🐣</div>
+      <h3 style="font-family:Jua,sans-serif;font-size:17px;margin-bottom:6px">수리·꾸미·다온과 함께 수학이 즐거워져요!</h3>
+      <p style="color:rgba(255,255,255,0.5);font-size:11px">더몬스터학원 · 매주 새 콘텐츠</p>
+      ${d.tip?`<div style="background:rgba(123,47,242,0.2);border:1.5px solid rgba(123,47,242,0.4);border-radius:10px;padding:12px;margin-top:12px;text-align:left">
+        <div style="color:#FFE135;font-size:11px;font-weight:700;margin-bottom:3px">수리 TIP ✦</div>
+        <p style="color:rgba(255,255,255,0.7);font-size:11px;line-height:1.5">${d.tip}</p></div>`:''}
+    </div>
+  </div>`;
+
+  $('#wtArea').innerHTML=html;
+}
+
+// ===== RENDER CARD NEWS =====
+function renderCn(d){
+  window._data=d;const sl=[];
+  // 커버 슬라이드
+  sl.push(`<div class="cn-s on" data-i="0"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:28px 20px;text-align:center;background:linear-gradient(135deg,#3A1078,#1E0A3C);color:#fff;position:relative">
+    <div style="position:absolute;bottom:0;left:0;right:0;height:4px;display:flex"><div style="flex:1;background:#7B2FF2"></div><div style="flex:1;background:#00D68F"></div><div style="flex:1;background:#FF6B35"></div></div>
+    <div style="font-size:44px;margin-bottom:10px">🦊</div>
+    <div style="display:inline-block;background:#7B2FF2;color:#fff;font-family:Jua,sans-serif;font-size:12px;padding:6px 16px;border-radius:20px;margin-bottom:14px">더몬스터학원</div>
+    <h2 style="font-family:Jua,sans-serif;font-size:20px;line-height:1.35;color:#FFE135;margin:0">${d.title}</h2>
+    <div style="font-family:Gaegu,cursive;color:rgba(255,255,255,0.4);font-size:13px;margin-top:6px">${d.subtitle}</div>
+  </div></div>`);
+
+  // 카드 슬라이드들
+  if(d.cardSlides)d.cardSlides.forEach((s,si)=>{
+    if(s.type==='stats'&&s.items)sl.push(`<div class="cn-s" data-i="${si+1}"><div style="flex:1;padding:20px;background:#FFFBF5;display:flex;flex-direction:column;gap:12px">
+      <h3 style="font-family:Jua,sans-serif;font-size:18px;text-align:center;color:#3A1078">📊 ${s.title}</h3>
+      ${s.items.map(it=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #E8DEFF">
+        <div style="width:36px;height:36px;border-radius:8px;border:1.5px solid #D8CCFF;display:flex;align-items:center;justify-content:center;font-size:16px;background:#fff">${it.icon}</div>
+        <div><div style="font-size:11px;color:#8B7AAF">${it.label}</div><div style="font-size:15px;font-weight:700">${it.value}</div></div>
+      </div>`).join('')}
+    </div></div>`);
+    else if(s.type==='dialog'&&s.dialogs)sl.push(`<div class="cn-s" data-i="${si+1}"><div style="flex:1;padding:20px;background:#FFFBF5;display:flex;flex-direction:column;gap:12px">
+      <h3 style="font-family:Jua,sans-serif;font-size:18px;text-align:center;color:#3A1078">💬 ${s.title}</h3>
+      ${s.dialogs.map(dd=>{const c=C[dd.character]||C.purple;return`<div style="display:flex;gap:8px;align-items:flex-start">
+        <div style="width:32px;height:32px;border-radius:50%;border:1.5px solid ${c.border};display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;background:${c.light}">${c.emoji}</div>
+        <div style="border-radius:10px;padding:8px 12px;font-size:12px;line-height:1.5;flex:1;border:1.5px solid ${c.border};background:${c.light}"><b style="color:${c.color}">${c.name}</b><br>${dd.text}</div>
+      </div>`;}).join('')}
+    </div></div>`);
+  });
+
+  // 엔딩 슬라이드
+  sl.push(`<div class="cn-s" data-i="${sl.length}"><div style="display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:28px 20px;text-align:center;background:linear-gradient(135deg,#1E0A3C,#3A1078);color:#fff;position:relative">
+    <div style="position:absolute;top:0;left:0;right:0;height:4px;display:flex"><div style="flex:1;background:#7B2FF2"></div><div style="flex:1;background:#00D68F"></div><div style="flex:1;background:#FF6B35"></div></div>
+    <div style="font-size:36px;letter-spacing:4px;margin-bottom:12px">🦊🐧🐣</div>
+    <h3 style="font-family:Jua,sans-serif;font-size:18px;margin-bottom:8px">친구들과 함께 수학이 즐거워져요!</h3>
+    <p style="color:rgba(255,255,255,0.4);font-size:12px">더몬스터학원 · 매주 새 콘텐츠</p>
+    ${d.tip?`<div style="background:rgba(123,47,242,0.2);border:1.5px solid rgba(123,47,242,0.4);border-radius:10px;padding:12px;margin-top:14px;text-align:left;width:100%">
+      <div style="color:#FFE135;font-size:11px;font-weight:700;margin-bottom:3px">수리 TIP ✦</div>
+      <p style="color:rgba(255,255,255,0.7);font-size:11px;line-height:1.5">${d.tip}</p></div>`:''}
+  </div></div>`);
+
+  const dots=sl.map((_,i)=>`<div class="cn-dot" data-d="${i}" style="width:${i===0?'20px':'8px'};height:8px;border-radius:${i===0?'4px':'50%'};border:1.5px solid #1E0A3C;background:${i===0?'#7B2FF2':'#fff'};transition:all 0.3s;cursor:pointer"></div>`).join('');
+  $('#cnArea').innerHTML=`<div class="cn-wrap" style="border:2.5px solid #1E0A3C;border-radius:16px;overflow:hidden;box-shadow:4px 4px 0 rgba(123,47,242,0.15)">${sl.join('')}</div>
+    <div class="cn-nav"><button class="cn-btn" onclick="cnP()">‹</button><div class="cn-dots">${dots}</div><button class="cn-btn" onclick="cnN()">›</button></div>`;
+  window._cn=0;window._cnT=sl.length;$$('.cn-dot').forEach(d=>d.addEventListener('click',()=>cnGo(+d.dataset.d)));
+}
+
+function cnGo(n){window._cn=n;$$('.cn-s').forEach((s,i)=>s.classList.toggle('on',i===n));$$('.cn-dot').forEach((d,i)=>{d.style.width=i===n?'20px':'8px';d.style.borderRadius=i===n?'4px':'50%';d.style.background=i===n?'#7B2FF2':'#fff';});}
+function cnN(){cnGo((window._cn+1)%window._cnT);}
+function cnP(){cnGo((window._cn-1+window._cnT)%window._cnT);}
+
+// ===== RENDER SHORTS =====
+window._st=null;window._si=0;
+function renderSh(d){
+  window._data=d;const sl=[];
+  sl.push(`<div class="ss" style="background:linear-gradient(180deg,#3A1078,#1E0A3C)"><div style="font-size:44px;margin-bottom:8px">🦊</div><div style="background:#7B2FF2;color:#fff;font-family:Jua,sans-serif;font-size:11px;padding:5px 14px;border-radius:16px;margin-bottom:12px">더몬스터학원</div><h2 style="font-family:Jua,sans-serif;font-size:18px;line-height:1.35;color:#FFE135;margin:0">${d.title}</h2><div style="font-family:Gaegu,cursive;color:rgba(255,255,255,0.4);font-size:12px;margin-top:4px">${d.subtitle}</div></div>`);
+  d.panels.forEach(p=>{
+    if(p.type==='dialog'){const c=C[p.character]||C.purple;
+      sl.push(`<div class="ss" style="background:linear-gradient(180deg,#2A0E5A,#1E0A3C)"><div style="width:52px;height:52px;border-radius:50%;background:${c.light};border:2px solid ${c.border};display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:6px">${c.emoji}</div><div style="font-family:Jua,sans-serif;font-size:12px;color:${c.color};margin-bottom:6px">${c.name}</div><div style="color:#fff;font-size:12px;line-height:1.6;padding:0 8px">${p.text.replace(/<b>/g,'<b style="color:#1E0A3C;font-weight:700;background:#FFE135;padding:1px 4px;border-radius:3px">').replace(/<\/b>/g,'</b>')}</div></div>`);}
+    else if(p.type==='info'){sl.push(`<div class="ss" style="background:linear-gradient(180deg,#2A0E5A,#1E0A3C)"><div style="background:#FFE135;color:#1E0A3C;font-family:Jua,sans-serif;font-size:12px;padding:6px 14px;border-radius:8px;margin-bottom:12px">📊 ${p.label}</div><div style="width:100%;display:flex;flex-direction:column;gap:6px">${p.items.map((it,j)=>`<div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.07);border-radius:8px;padding:8px 10px;color:#fff;font-size:11px;line-height:1.4;border:1px solid rgba(255,255,255,0.08)"><div style="min-width:20px;height:20px;border-radius:5px;background:#7B2FF2;color:#FFE135;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900">${j+1}</div><span>${it.replace(/<[^>]+>/g,'')}</span></div>`).join('')}</div></div>`);}
+    else if(p.type==='compare'){sl.push(`<div class="ss" style="background:linear-gradient(180deg,#2A0E5A,#1E0A3C)"><div style="font-family:Jua,sans-serif;font-size:13px;color:#FFE135;margin-bottom:10px">⚖️ 비교</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;width:100%"><div style="background:rgba(123,47,242,0.15);border:1.5px solid #7B2FF2;border-radius:10px;padding:10px;text-align:center"><div style="font-family:Jua,sans-serif;font-size:12px;margin-bottom:4px">${p.left.title}</div><div style="font-size:10px;color:rgba(255,255,255,0.7);line-height:1.4">${p.left.points}</div></div><div style="background:rgba(255,107,53,0.15);border:1.5px solid #FF6B35;border-radius:10px;padding:10px;text-align:center"><div style="font-family:Jua,sans-serif;font-size:12px;margin-bottom:4px">${p.right.title}</div><div style="font-size:10px;color:rgba(255,255,255,0.7);line-height:1.4">${p.right.points}</div></div></div></div>`);}
+  });
+  sl.push(`<div class="ss" style="background:linear-gradient(180deg,#3A1078,#1E0A3C)"><div style="font-size:32px;letter-spacing:4px;margin-bottom:10px">🦊🐧🐣</div><h2 style="font-family:Jua,sans-serif;font-size:16px;line-height:1.35;color:#fff;margin:0 0 6px">수학이 즐거워져요!</h2><div style="color:rgba(255,255,255,0.4);font-size:11px">${d.tip||'매주 새 콘텐츠'}</div></div>`);
+  const segs=sl.map((_,i)=>`<div class="sp" data-i="${i}"><div class="f"></div></div>`).join('');
+  $('#shArea').innerHTML=`<div class="sh-phone"><div class="sh-notch"></div><div class="sh-prog">${segs}</div><div class="sh-scr" id="shScr">${sl.join('')}</div></div>
+    <div class="sh-ctrl"><button class="sh-btn pr" id="shPlay" onclick="togSh()">▶ 재생</button><button class="sh-btn" onclick="rstSh()">↺</button><div class="sh-spd">속도<select id="shSpd" onchange="window._spd=+this.value"><option value="3000">느리게</option><option value="2500" selected>보통</option><option value="1800">빠르게</option></select></div></div>
+    <div class="sh-tip">💡 추천: "PNG프레임(최고화질)" → 1440×2560 무손실 이미지 → CapCut/InShot에서 조합 = 완벽 화질!<br>"영상(보통)" = 브라우저 내 인코딩 (간편하지만 화질 한계 있음)</div>`;
+  window._si=0;window._sT=sl.length;window._spd=2500;
+  const ss=$$('.ss');if(ss.length)ss[0].classList.add('on');
+  document.getElementById('shScr')?.addEventListener('click',e=>{const r=e.currentTarget.getBoundingClientRect(),x=e.clientX-r.left;if(x>r.width*0.3)nxSh();else pvSh();});
+}
+function togSh(){window._st?stopSh():playSh();}
+function playSh(){$('#shPlay').textContent='⏸ 정지';upSP();window._st=setInterval(()=>{const s=$$('.ss'),g=$$('.sp');if(g[window._si]){g[window._si].classList.remove('act');g[window._si].classList.add('done');}s[window._si].classList.remove('on');s[window._si].classList.add('out');window._si++;if(window._si>=window._sT){stopSh();setTimeout(rstSh,1000);return;}s[window._si].classList.add('on');upSP();},window._spd);}
+function stopSh(){clearInterval(window._st);window._st=null;$('#shPlay').textContent='▶ 재생';$$('.sp.act').forEach(s=>s.classList.remove('act'));}
+function rstSh(){stopSh();window._si=0;$$('.ss').forEach((s,i)=>{s.classList.remove('on','out');if(!i)s.classList.add('on');});$$('.sp').forEach(s=>s.classList.remove('done','act'));}
+function upSP(){$$('.sp').forEach((s,i)=>{s.classList.remove('act');if(i<window._si)s.classList.add('done');else if(i===window._si)s.classList.add('act');else s.classList.remove('done');});}
+function nxSh(){if(window._si>=window._sT-1)return;const s=$$('.ss'),g=$$('.sp');if(g[window._si]){g[window._si].classList.remove('act');g[window._si].classList.add('done');}s[window._si].classList.remove('on');s[window._si].classList.add('out');window._si++;s[window._si].classList.add('on');upSP();}
+function pvSh(){if(!window._si)return;const s=$$('.ss'),g=$$('.sp');s[window._si].classList.remove('on');if(g[window._si])g[window._si].classList.remove('act','done');window._si--;s[window._si].classList.remove('out');s[window._si].classList.add('on');upSP();}
+
+// ===== DEMO =====
+function loadDemo(){
+  try{
+  render({
+    title:"음수의 곱셈, 왜 양수가 될까?",
+    subtitle:"중1 수학의 첫 번째 고비를 넘자!",
+    tip:"음수 × 음수 = 양수는 외우지 말고, 수직선에서 방향이 두 번 바뀐다고 생각하면 쉬워요!",
+    panels:[
+      {type:"dialog",character:"ghost",text:"수리야, <b>음수 × 음수</b>가 왜 양수가 돼? 그냥 외워야 해?",style:"normal"},
+      {type:"dialog",character:"purple",text:"좋은 질문이야! 수직선을 생각해봐. <b>음수를 곱한다</b>는 건 방향을 반대로 바꾸는 거야.",style:"normal"},
+      {type:"dialog",character:"oni",text:"오~! 그러면 <b>방향을 두 번</b> 바꾸면 원래로 돌아오는 거지?!",style:"normal"},
+      {type:"dialog",character:"purple",text:"정확해! (-3) × (-2)를 보자. -3에서 시작, 방향 반대 → <b>+6</b>이 되는 거야.",style:"accent"},
+      {type:"info",label:"부호 규칙 정리",items:["(+) × (+) = (+) 양수","(+) × (-) = (-) 음수","(-) × (+) = (-) 음수","(-) × (-) = (+) 양수"]},
+      {type:"dialog",character:"ghost",text:"그러면 <b>부호가 같으면 양수</b>, 다르면 음수인 거네?",style:"normal"},
+      {type:"compare",left:{title:"같은 부호",points:"(+)×(+) = (+)\n(-)×(-) = (+)\n결과는 양수!"},right:{title:"다른 부호",points:"(+)×(-) = (-)\n(-)×(+) = (-)\n결과는 음수!"}},
+      {type:"dialog",character:"oni",text:"대박! 이 원리면 <b>나눗셈 부호</b>도 똑같이 적용되겠다!",style:"normal"}
+    ],
+    cardSlides:[
+      {type:"stats",title:"중1 부호 실수 통계",items:[{icon:"📊",label:"부호 실수 비율",value:"전체 오답의 67%"},{icon:"📐",label:"가장 많이 틀리는 유형",value:"(-) × (-) 계산"},{icon:"⏰",label:"완벽 숙달 시간",value:"약 2주 반복 연습"},{icon:"✅",label:"숙달 후 정답률",value:"95% 이상"}]},
+      {type:"dialog",title:"친구들의 꿀팁",dialogs:[{character:"purple",text:"부호 규칙은 외우지 말고, 수직선 방향 전환으로 이해하자!"},{character:"ghost",text:"같은 부호끼리는 양수, 다른 부호끼리는 음수!"},{character:"oni",text:"매일 10문제씩 2주만 풀면 실수가 확 줄어!"}]}
+    ]
+  });
+  }catch(e){toast('❌ 데모 에러: '+e.message,'error');console.error(e);}
+}
+</script>
+</body>
+</html>
