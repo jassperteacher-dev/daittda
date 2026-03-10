@@ -95,6 +95,31 @@ col_left, col_right = st.columns([4, 6], gap="large")
 with col_left:
     st.markdown("#### 🔑 구글 API 키 입력")
     api_key = st.text_input("Google AI Studio에서 발급받은 API 키를 넣으세요", type="password", placeholder="AIzaSy...")
+    
+    # -------- ✨ [새로 추가된 기능] 모델 목록 조회 버튼 --------
+    if st.button("🔍 내 API 키로 사용 가능한 모델 확인하기"):
+        if not api_key:
+            st.warning("구글 API 키를 먼저 입력해주세요!")
+        else:
+            with st.spinner("모델 목록을 불러오는 중..."):
+                try:
+                    genai.configure(api_key=api_key)
+                    available_models =[]
+                    # 구글 API에서 제공하는 전체 모델 목록 가져오기
+                    for m in genai.list_models():
+                        # '글 생성(generateContent)' 기능이 있는 모델만 필터링
+                        if 'generateContent' in m.supported_generation_methods:
+                            available_models.append(m.name)
+                    
+                    if available_models:
+                        st.success(f"✅ 총 {len(available_models)}개의 텍스트 생성 모델을 사용할 수 있습니다.")
+                        st.write(available_models) # 화면에 리스트 출력
+                    else:
+                        st.warning("사용 가능한 텍스트 생성 모델이 없습니다.")
+                except Exception as e:
+                    st.error(f"목록을 불러오지 못했습니다. API 키가 정확한지 확인해주세요.\n에러 내용: {e}")
+    # -------------------------------------------------------------
+    
     st.write("")
 
     st.markdown("#### 📁 NotebookLM 가공 정보 🔴필수")
