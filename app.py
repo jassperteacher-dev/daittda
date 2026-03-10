@@ -42,7 +42,7 @@ st.markdown("""
 def generate_blog_with_gemini(api_key, nlm_text, target, goal):
     genai.configure(api_key=api_key)
     # 구글의 최신 무료/고속 모델 사용
-    model = genai.GenerativeModel('gemini-2.0-flash') 
+    model = genai.GenerativeModel('gemini-1.5-flash') 
     
     prompt = f"""
     당신은 대한민국 최고의 교육 전문 블로거입니다. 
