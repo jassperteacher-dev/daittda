@@ -473,25 +473,25 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 입력")
 
-    st.markdown("#### 🔑 API 세팅")
-    with st.expander("API 키 및 노션 설정", expanded=False):
-        api_key = st.text_input("Claude API 키", type="password")
-        notion_token = st.text_input("Notion API 토큰 (secret_...)", type="password")
-        notion_db_id = st.text_input("Notion 데이터베이스 ID")
-
     st.markdown("#### 📓 노션(Notion)에서 불러오기")
     if 'notion_list' not in st.session_state: st.session_state.notion_list = []
     if 'nlm_text' not in st.session_state: st.session_state.nlm_text = ""
 
+    # 2. 버튼 클릭 시 Secrets에 있는 값을 사용하여 바로 함수 호출
     if st.button("🔄 노션 데이터베이스 불러오기", use_container_width=True):
-        if not notion_token or not notion_db_id:
-            st.warning("위 설정에서 노션 토큰과 DB ID를 먼저 입력해주세요.")
-        else:
+        try:
+            # Secrets에서 직접 값을 가져옵니다.
+            n_token = st.secrets["NOTION_TOKEN"]
+            n_db_id = st.secrets["NOTION_DB_ID"]
+            
             with st.spinner("노션에서 데이터를 가져오는 중..."):
-                st.session_state.notion_list = fetch_notion_db(notion_token, notion_db_id)
+                st.session_state.notion_list = fetch_notion_db(n_token, n_db_id)
                 if st.session_state.notion_list:
                     st.success(f"{len(st.session_state.notion_list)}개 자료 발견!")
+        except Exception as e:
+            st.error("⚠️ Secrets 설정을 확인해주세요. (NOTION_TOKEN 또는 NOTION_DB_ID 누락)")
 
+    # 3. 데이터 선택 및 결과 저장
     if st.session_state.notion_list:
         titles = ["자료를 선택하세요"] + [item['title'] for item in st.session_state.notion_list]
         selected_title = st.selectbox("📝 활용할 노트북LM 자료 선택", titles)
