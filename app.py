@@ -99,7 +99,28 @@ CHARACTERS = {
 
 TONES = ["전문적·친절", "따뜻·공감", "쉽고 간결"]
 
-
+# ─── 노션 데이터 연동 함수 ───
+def fetch_notion_db(token, db_id):
+    url = f"https://api.notion.com/v1/databases/{db_id}/query"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json"
+    }
+    response = requests.post(url, headers=headers)
+    if response.status_code != 200:
+        st.error(f"노션 연결 실패: {response.text}")
+        return []
+    data = response.json()
+    results = []
+    for row in data.get('results', []):
+        try:
+            title = row['properties']['이름']['title'][0]['plain_text']
+            content = row['properties']['내용']['rich_text'][0]['plain_text']
+            results.append({"title": title, "content": content})
+        except: continue
+    return results
+    
 # ─── 유틸 함수 ───
 def parse_json(raw):
     """Claude 응답에서 JSON 추출 및 파싱"""
@@ -126,9 +147,9 @@ def parse_json(raw):
             return json.loads(f)
 
 
-def call_claude(api_key, prompt, max_tokens=3000):
+def call_claude(API_KEY, prompt, max_tokens=3000):
     """Claude API 호출"""
-    client = anthropic.Anthropic(api_key=api_key)
+    client = anthropic.Anthropic(API_KEY=API_KEY)
     msg = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=max_tokens,
