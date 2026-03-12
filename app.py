@@ -472,7 +472,36 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 입력")
 
-    nlm = st.text_area("NotebookLM 내용 (필수)", height=150, placeholder="교육정보 내용을 여기에 붙여넣기...")
+    st.markdown("#### 🔑 API 세팅")
+    with st.expander("API 키 및 노션 설정", expanded=False):
+        api_key = st.text_input("Claude API 키", type="password")
+        notion_token = st.text_input("Notion API 토큰 (secret_...)", type="password")
+        notion_db_id = st.text_input("Notion 데이터베이스 ID")
+
+    st.markdown("#### 📓 노션(Notion)에서 불러오기")
+    if 'notion_list' not in st.session_state: st.session_state.notion_list = []
+    if 'nlm_text' not in st.session_state: st.session_state.nlm_text = ""
+
+    if st.button("🔄 노션 데이터베이스 불러오기", use_container_width=True):
+        if not notion_token or not notion_db_id:
+            st.warning("위 설정에서 노션 토큰과 DB ID를 먼저 입력해주세요.")
+        else:
+            with st.spinner("노션에서 데이터를 가져오는 중..."):
+                st.session_state.notion_list = fetch_notion_db(notion_token, notion_db_id)
+                if st.session_state.notion_list:
+                    st.success(f"{len(st.session_state.notion_list)}개 자료 발견!")
+
+    if st.session_state.notion_list:
+        titles = ["자료를 선택하세요"] + [item['title'] for item in st.session_state.notion_list]
+        selected_title = st.selectbox("📝 활용할 노트북LM 자료 선택", titles)
+        if selected_title != "자료를 선택하세요":
+            for item in st.session_state.notion_list:
+                if item['title'] == selected_title:
+                    st.session_state.nlm_text = item['content']
+                    break
+
+    st.markdown("#### 📁 가공 정보 (직접 수정 가능)")
+    nlm_text = st.text_area("내용 확인/수정", value=st.session_state.nlm_text, height=200, label_visibility="collapsed")
 
     target_names = [f"{t['target']} - {t['goal']}" for t in TARGETS]
     target_idx = st.selectbox("대상 선택 (필수)", range(len(TARGETS)), format_func=lambda i: target_names[i])
