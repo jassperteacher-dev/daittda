@@ -460,38 +460,21 @@ def generate_shorts_video(panels, blog_title):
 
 
 # ─── 헤더 ───
-st.markdown("""
-<div class="main-header">
-    <h1>다<span class="accent">잇</span>다</h1>
-    <span style="color:#888;font-size:14px;">교육정보 콘텐츠 자동생성</span>
-</div>
-""", unsafe_allow_html=True)
+st.markdown('<div class="main-header"><h1>다<span class="accent">잇</span>다</h1><span style="color:#888;font-size:14px;">교육정보 콘텐츠 자동생성</span></div>', unsafe_allow_html=True)
 
-# ─── 사이드바 ───
+# ─── 세션 상태 초기화 ───
+if 'blog' not in st.session_state: st.session_state.blog = None
+if 'webtoon' not in st.session_state: st.session_state.webtoon = None
+if 'notion_list' not in st.session_state: st.session_state.notion_list = []
+if 'nlm_text' not in st.session_state: st.session_state.nlm_text = ""
+
+# ─── 사이드바 (입력) ───
 with st.sidebar:
-
-    st.markdown("---")
     st.markdown("### 입력")
-
-    st.markdown("#### 📓 노션(Notion)에서 불러오기")
-    if 'notion_list' not in st.session_state: st.session_state.notion_list = []
-    if 'nlm_text' not in st.session_state: st.session_state.nlm_text = ""
-
-    # 2. 버튼 클릭 시 Secrets에 있는 값을 사용하여 바로 함수 호출
+    # 노션 연동 로직
     if st.button("🔄 노션 데이터베이스 불러오기", use_container_width=True):
-        try:
-            # Secrets에서 직접 값을 가져옵니다.
-            n_token = st.secrets["NOTION_TOKEN"]
-            n_db_id = st.secrets["NOTION_DB_ID"]
-            
-            with st.spinner("노션에서 데이터를 가져오는 중..."):
-                st.session_state.notion_list = fetch_notion_db(n_token, n_db_id)
-                if st.session_state.notion_list:
-                    st.success(f"{len(st.session_state.notion_list)}개 자료 발견!")
-        except Exception as e:
-            st.error("⚠️ Secrets 설정을 확인해주세요. (NOTION_TOKEN 또는 NOTION_DB_ID 누락)")
-
-    # 3. 데이터 선택 및 결과 저장
+        st.session_state.notion_list = fetch_notion_db(NOTION_TOKEN, NOTION_DB_ID)
+    
     if st.session_state.notion_list:
         titles = ["자료를 선택하세요"] + [item['title'] for item in st.session_state.notion_list]
         selected_title = st.selectbox("📝 활용할 노트북LM 자료 선택", titles)
@@ -503,75 +486,33 @@ with st.sidebar:
 
     st.markdown("#### 📁 가공 정보 (직접 수정 가능)")
     nlm_text = st.text_area("내용 확인/수정", value=st.session_state.nlm_text, height=200, label_visibility="collapsed")
+    
+    # 여기서 nlm_text 업데이트
+    st.session_state.nlm_text = nlm_text
 
     target_names = [f"{t['target']} - {t['goal']}" for t in TARGETS]
     target_idx = st.selectbox("대상 선택 (필수)", range(len(TARGETS)), format_func=lambda i: target_names[i])
     sel = TARGETS[target_idx]
-
     tone = st.radio("글 톤", TONES, horizontal=True)
 
     st.markdown("---")
-    generate_btn = st.button("자동 생성 시작", type="primary", use_container_width=True, disabled=not api_key)
+    generate_btn = st.button("🚀 자동 생성 시작", type="primary", use_container_width=True)
 
-
-# ─── 세션 상태 초기화 ───
-if 'blog' not in st.session_state:
-    st.session_state.blog = None
-if 'webtoon' not in st.session_state:
-    st.session_state.webtoon = None
-
-# ─── 생성 로직 ───
-if generate_btn and api_key:
-    if not nlm or len(nlm) < 10:
+# ─── 생성 로직 (버튼 클릭 시 실행) ───
+if generate_btn:
+    if len(st.session_state.nlm_text) < 10:
         st.error("내용을 10자 이상 입력해주세요")
     else:
-        with st.spinner("블로그 작성 중..."):
-            try:
-                blog_prompt = (
-                    "JSON만 출력. 코드블록 금지. {로 시작 }로 끝. 문자열 안 큰따옴표 금지(작은따옴표 사용).\n\n"
-                    f"너는 다잇다 교육정보 플랫폼의 전문 블로거야. 다잇다는 다양한 교육정보를 잇다라는 뜻.\n"
-                    f"대상:{sel['target']} 목표:{sel['goal']} 톤:{tone}\n[자료]\n{nlm[:1200]}\n\n"
-                    "규칙: intro는 다잇다 소개로 시작. sections 3개, 각 content 4~6문장. "
-                    "conclusion은 카카오톡채널 유도. 1500자 내외. 자연스러운 문체.\n\n"
-                    '{"title":"","subtitle":"","intro":"","sections":[{"title":"","content":"","cardTopic":""}],'
-                    '"conclusion":"","hashtags":["","","","",""]}'
-                )
-                blog_raw = call_claude(api_key, blog_prompt, 3000)
-                st.session_state.blog = parse_json(blog_raw)
-            except Exception as e:
-                st.error(f"블로그 생성 실패: {e}")
-
-        if st.session_state.blog:
-            with st.spinner("웹툰 + 카드뉴스 제작 중..."):
-                try:
-                    b = st.session_state.blog
-                    wt_prompt = (
-                        "JSON만 출력. 코드블록 금지. {로 시작 }로 끝. 문자열 안 큰따옴표 금지(작은따옴표 사용).\n\n"
-                        f"다잇다 교육 웹툰+카드뉴스 작가. 재미있고 흥미진진하게.\n"
-                        f"주제:{b['title']} 대상:{sel['target']}\n"
-                        "캐릭터: bear=다곰이(걱정많은 학부모) owl=다올이(유쾌한 전문가) squirrel=다람이(솔직한 학생)\n\n"
-                        "규칙:\n- panels 8개 이상. 유머, 공감, 감정표현. 자연스러운 대화.\n"
-                        "- info 패널 중간/끝에 배치. tip은 위트있게.\n"
-                        "- cardSlides 6개: 다양한 type 섞기(stats 3개, dialog 2개, tip 1개). 각 슬라이드에 제목 필수.\n"
-                        "- endingComment: 마지막 카드용 다잇다 코멘트\n\n"
-                        '{"title":"","tip":"","endingComment":"","panels":[{"type":"dialog","character":"bear","text":""},'
-                        '{"type":"dialog","character":"owl","text":""},{"type":"dialog","character":"squirrel","text":""},'
-                        '{"type":"dialog","character":"bear","text":""},{"type":"info","label":"","items":["","",""]},'
-                        '{"type":"dialog","character":"owl","text":""},{"type":"dialog","character":"squirrel","text":""},'
-                        '{"type":"dialog","character":"bear","text":""},{"type":"info","label":"","items":["","",""]}],'
-                        '"cardSlides":[{"type":"stats","title":"","items":[{"icon":"","label":"","value":""}]},'
-                        '{"type":"stats","title":"","items":[{"icon":"","label":"","value":""}]},'
-                        '{"type":"dialog","title":"","dialogs":[{"character":"owl","text":""}]},'
-                        '{"type":"tip","title":"","items":["","",""]},'
-                        '{"type":"stats","title":"","items":[{"icon":"","label":"","value":""}]},'
-                        '{"type":"dialog","title":"","dialogs":[{"character":"bear","text":""}]}]}'
-                    )
-                    wt_raw = call_claude(api_key, wt_prompt, 4000)
-                    st.session_state.webtoon = parse_json(wt_raw)
-                except Exception as e:
-                    st.error(f"웹툰 생성 실패: {e}")
-
-            st.success("콘텐츠 생성 완료!")
+        with st.spinner("콘텐츠 생성 중..."):
+            # 1. 블로그
+            blog_prompt = f"대상:{sel['target']} 목표:{sel['goal']} 톤:{tone}\n[자료]\n{st.session_state.nlm_text[:1200]}\n\n..."
+            blog_raw = call_claude(API_KEY, blog_prompt)
+            st.session_state.blog = parse_json(blog_raw)
+            
+            # 2. 웹툰
+            wt_prompt = f"주제:{st.session_state.blog['title']} 대상:{sel['target']}\n..."
+            wt_raw = call_claude(API_KEY, wt_prompt)
+            st.session_state.webtoon = parse_json(wt_raw)
             st.rerun()
 
 # ─── 결과 표시 ───
