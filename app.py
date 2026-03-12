@@ -1,5 +1,6 @@
 import streamlit as st
 import anthropic
+import requests
 import json
 import re
 import io
@@ -10,6 +11,16 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 
+# --- 설정값 불러오기 ---
+try:
+    # 스트림릿 클라우드의 Secrets에서 설정값을 가져옵니다.
+    API_KEY = st.secrets["ANTHROPIC_API_KEY"]
+    NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
+    NOTION_DB_ID = st.secrets["NOTION_DB_ID"]
+except Exception as e:
+    st.error("⚠️ 설정 파일(Secrets)이 로드되지 않았습니다. 스트림릿 클라우드 설정의 Secrets를 확인해주세요.")
+    st.stop() # 설정이 안 되면 앱을 멈춥니다.
+    
 # ─── 페이지 설정 ───
 st.set_page_config(page_title="다잇다 콘텐츠 자동생성", page_icon="✨", layout="wide")
 
@@ -458,16 +469,6 @@ st.markdown("""
 
 # ─── 사이드바 ───
 with st.sidebar:
-    st.markdown("### 설정")
-    # Streamlit Secrets에서 API 키 자동 로드
-    default_key = ""
-    try:
-        default_key = st.secrets.get("ANTHROPIC_API_KEY", "")
-    except Exception:
-        pass
-    api_key = st.text_input("Anthropic API 키", value=default_key, type="password", placeholder="sk-ant-api03-...")
-    if not api_key:
-        st.info("API 키를 입력하면 콘텐츠를 생성할 수 있습니다")
 
     st.markdown("---")
     st.markdown("### 입력")
